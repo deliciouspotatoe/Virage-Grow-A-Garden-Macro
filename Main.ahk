@@ -68,6 +68,8 @@ gearScroll_1080p     := [1, 2, 4, 6, 8, 9, 11, 13]
 gearScroll_1440p_100 := [2, 3, 6, 8, 10, 13, 15, 17]
 gearScroll_1440p_125 := [1, 3, 4, 6, 8, 9, 12, 12]
 
+global ShopActionDelay := 18000  ; 18 seconds (change as needed)
+
 ; http functions
 
 SendDiscordMessage(webhookURL, message) {
@@ -267,7 +269,7 @@ getMouseCoord(axis) {
 ; directional sequence encoder/executor
 ; if you're going to modify the calls to this make sure you know what you're doing (ui navigation has some odd behaviours)
 
-uiUniversal(order := 0, exitUi := 1, continuous := 0, spam := 0, spamCount := 30, delayTime := 50, mode := "universal", index := 0, dir := "nil", itemType := "nil") {
+uiUniversal(order := 0, exitUi := 1, continuous := 0, spam := 0, spamCount := 30, delayTime := 70, mode := "universal", index := 0, dir := "nil", itemType := "nil") {
 
     global SavedSpeed
     global SavedKeybind
@@ -554,7 +556,7 @@ dialogueClick(shop) {
     sleepAmount(500, 1500)
 
     if (shop = "gear") {
-        SafeClickRelative(midX + 0.4, midY - 0.1)
+        SafeClickRelative(midX + 0.45, midY + 0.25)
     }
 
     Sleep, 500
@@ -1456,7 +1458,7 @@ AutoBuySeed:
     ; queues if its not the first cycle and the time is a multiple of 5
     if (cycleCount > 0 && Mod(currentMinute, 5) = 0 && currentMinute != lastSeedMinute) {
         lastSeedMinute := currentMinute
-        SetTimer, PushBuySeed, -8000
+        SetTimer, PushBuySeed, -%ShopActionDelay%
     }
 
 Return
@@ -1480,7 +1482,7 @@ AutoBuyGear:
     ; queues if its not the first cycle and the time is a multiple of 5
     if (cycleCount > 0 && Mod(currentMinute, 5) = 0 && currentMinute != lastGearMinute) {
         lastGearMinute := currentMinute
-        SetTimer, PushBuyGear, -8000
+        SetTimer, PushBuyGear, -%ShopActionDelay%
     }
 
 Return
@@ -1504,7 +1506,7 @@ AutoBuyEggShop:
     ; queues if its not the first cycle and the time is a multiple of 30
     if (cycleCount > 0 && Mod(currentMinute, 30) = 0 && currentMinute != lastEggShopMinute) {
         lastEggShopMinute := currentMinute
-        SetTimer, PushBuyEggShop, -8000
+        SetTimer, PushBuyEggShop, -%ShopActionDelay%
     }
 
 Return
@@ -1529,7 +1531,7 @@ AutoBuyCosmeticShop:
     ; queues if its not the first cycle, the minute is 0, and the current hour is an even number (every 2 hours)
     if (cycleCount > 0 && currentMinute = 0 && Mod(currentHour, 2) = 0 && currentHour != lastCosmeticShopHour) {
         lastCosmeticShopHour := currentHour
-        SetTimer, PushBuyCosmeticShop, -8000
+        SetTimer, PushBuyCosmeticShop, -%ShopActionDelay%
     }
 
 Return
@@ -1836,7 +1838,7 @@ EggShopPath:
 
     ; egg 1 sequence
     Send, {w Down}
-    Sleep, 1800
+    Sleep, 1500 ; reduced by 300
     Send {w Up}
     sleepAmount(500, 1000)
     Send {e}
