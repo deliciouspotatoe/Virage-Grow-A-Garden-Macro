@@ -377,6 +377,65 @@ uiUniversal(order := 0, exitUi := 1, continuous := 0, spam := 0, spamCount := 30
 
 buyUniversal(itemType) {
 
+    if (itemType = "honey") {
+        ; Hardcoded sequence for honey shop - predefined items
+        repeatKey("Enter", 1)           ; Seed pack
+        Sleep, 100
+        repeatKey("Down", 2, 200)            ; 
+        Sleep, 100
+        repeatKey("Enter", 5)           ; Buy seed pack
+        Sleep, 100
+        repeatKey("Down", 3)            ; 
+        Sleep, 100
+        repeatKey("Enter", 1)           ; Nectarine
+        Sleep, 100
+        repeatKey("Down", 1)            ;
+        Sleep, 100
+        repeatKey("Enter", 5)           ; Buy Nectarine
+        Sleep, 100
+        repeatKey("Down", 1)            ;
+        Sleep, 100
+        repeatKey("Enter", 1)           ; Hive Fruit
+        Sleep, 100
+        repeatKey("Down", 1)            ; 
+        Sleep, 100
+        repeatKey("Enter", 5)           ; Buy Hive Fruit
+        Sleep, 100
+        repeatKey("Down", 3)            ; down arrow x3
+        Sleep, 100
+        repeatKey("Enter", 1)           ; enter
+        Sleep, 100
+        repeatKey("Down", 1)            ; down arrow
+        Sleep, 100
+        repeatKey("Enter", 5)           ; spam enter
+        Sleep, 100
+        repeatKey("Down", 1)            ; down arrow
+        Sleep, 100
+        repeatKey("Enter", 1)           ; enter
+        Sleep, 100
+        repeatKey("Down", 2, 200)            ; down arrow x2
+        Sleep, 100
+        repeatKey("Enter", 5)           ; spam enter
+        Sleep, 100
+        repeatKey("Down", 1)            ; down arrow
+        Sleep, 100
+        repeatKey("Enter", 1)           ; enter
+        Sleep, 100
+        repeatKey("Down", 2, 200)            ; down arrow x2
+        Sleep, 100
+        repeatKey("Enter", 5)           ; spam enter
+        Sleep, 100
+        repeatKey("Up", 14)             ; up arrow x14
+        Sleep, 100
+        repeatKey("Right", 2)           ; right arrow
+        Sleep, 100
+        repeatKey("Down", 1)            ; down arrow
+        Sleep, 100
+        repeatKey("Enter", 1)           ; enter
+        Sleep, 100
+        return                          ; return at the end of the if block
+    }
+
     global currentArray
     global currentSelectedArray
     global indexItem := ""
@@ -557,6 +616,9 @@ dialogueClick(shop) {
 
     if (shop = "gear") {
         SafeClickRelative(midX + 0.45, midY + 0.25)
+    }
+    if (shop = "honey") {
+        SafeClickRelative(midX + 0.45, midY + 0.4)
     }
 
     Sleep, 500
@@ -783,7 +845,7 @@ quickDetect(color1, color2, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2R
     x2 := winX + Round(x2Ratio * winW)
     y2 := winY + Round(y2Ratio * winH)
 
-    ; for seeds/gears checks if either color is there (buy button)
+    ; for seeds/gears/honey checks if either color is there (buy button)
     if (item) {
         for index, color in [color1, color2] {
             PixelSearch, FoundX, FoundY, x1, y1, x2, y2, %color%, variation, Fast RGB
@@ -852,6 +914,30 @@ eggItems := ["Common Egg", "Uncommon Egg", "Rare Egg", "Legendary Egg", "Mythica
 
 cosmeticItems := ["Cosmetic 1", "Cosmetic 2", "Cosmetic 3", "Cosmetic 4", "Cosmetic 5"
              , "Cosmetic 6",  "Cosmetic 7", "Cosmetic 8", "Cosmetic 9"]
+
+honeyItems := ["Flower Seed Pack", "Lavender Seed", "Nectarshade Seed", "Nectarine Seed", "Hive Fruit Seed"
+           , "Pollen Radar", "Nectar Staff", "Honey Sprinkle", "Bee Egg", "Bee Crate"
+           , "Honey Comb", "Bee Chair", "Honey Torch", "Honey Walkway"]
+
+; mask arrays /!\ 1:1 False with every item array except honey /!\
+
+seedMask := []
+Loop, % seedItems.Length()
+    seedMask.Push(false)
+
+gearMask := []
+Loop, % gearItems.Length()
+    gearMask.Push(false)
+
+eggMask := []
+Loop, % eggItems.Length()
+    eggMask.Push(false)
+
+; On for: Flower Seed Pack, Bee Egg and Bee Crate
+honeyMask := [true, false, false, false, false, false, false, false, true, true, false, false, false, false]
+
+global selectedHoneyItems := []
+global honeyAutoActive := 0
 
 settingsFile := A_ScriptDir "\settings.ini"
 
@@ -936,8 +1022,23 @@ ShowGui:
 
     Gui, Tab, 4
     Gui, Font, s9 ce8ac07 Bold, Segoe UI
-    Gui, Add, GroupBox, x23 y50 w475 h340 ce8ac07, Honey Shop
-    Gui, Add, Button, x160 y200 w200 h40 gOpenPremiumSection, Buy Premium Macro
+    Gui, Add, GroupBox, x23 y50 w475 h340 ce8ac07, Honey Shop Items
+    IniRead, SelectAllHoney, %settingsFile%, Honey, SelectAllHoney, 0
+    Gui, Add, Checkbox, % "x50 y90 vSelectAllHoney gHandleSelectAll ce8ac07 " . (SelectAllHoney ? "Checked" : ""), Select All Honey Items
+    Loop, % honeyItems.Length() {
+        IniRead, hVal, %settingsFile%, Honey, Item%A_Index%, 0
+        if (A_Index > 7) {
+            col := 250
+            idx := A_Index - 8
+            yBase := 125
+        } else {
+            col := 50
+            idx := A_Index
+            yBase := 100
+        }
+        y := yBase + (idx * 25)
+        Gui, Add, Checkbox, % "x" col " y" y " vHoneyItem" A_Index " gHandleSelectAll cD3D3D3 " . (hVal ? "Checked" : ""), % honeyItems[A_Index]
+    }
 
     Gui, Tab, 5
     Gui, Font, s9 cD41551 Bold, Segoe UI
@@ -1302,6 +1403,12 @@ UpdateSelectedItems:
             selectedEggItems.Push(eggItems[A_Index])
     }
 
+    selectedHoneyItems := []
+    Loop, % honeyItems.Length() {
+        if (HoneyItem%A_Index%)
+            selectedHoneyItems.Push(honeyItems[A_Index])
+    }
+
 Return
 
 GetSelectedItems() {
@@ -1322,6 +1429,11 @@ GetSelectedItems() {
         for _, name in selectedEggItems
             result .= "  - " name "`n"
     }
+    if (selectedHoneyItems.Length()) {
+        result .= "Honey Items:`n"
+        for _, name in selectedHoneyItems
+            result .= "  - " name "`n"
+    }
 
     return result
     
@@ -1340,6 +1452,7 @@ StartScanMultiInstance:
     global lastSeedMinute := -1
     global lastEggShopMinute := -1
     global lastCosmeticShopHour := -1
+    global lastHoneyShopMinute := -1
 
     started := 1
     cycleFinished := 1
@@ -1551,6 +1664,31 @@ BuyCosmeticShop:
 
 Return
 
+AutoBuyHoneyShop:
+
+    ; queues if its not the first cycle and the time is a multiple of 30
+    if (cycleCount > 0 && Mod(currentMinute, 30) = 0 && currentMinute != lastHoneyShopMinute) {
+        lastHoneyShopMinute := currentMinute
+        SetTimer, PushBuyHoneyShop, -%ShopActionDelay%
+    }
+
+Return
+
+PushBuyHoneyShop: 
+
+    actionQueue.Push("BuyHoneyShop")
+
+Return
+
+BuyHoneyShop:
+
+    currentSection := "BuyHoneyShop"
+    if (selectedHoneyItems.Length()) {
+        Gosub, HoneyShopPath
+    }
+
+Return
+
 ; helper labels
 
 SetToolTip:
@@ -1590,6 +1728,10 @@ SetToolTip:
     else
         cosText := cosM . ":" . (cosS < 10 ? "0" . cosS : cosS)
 
+    ; Honey shop uses same 30-minute interval as egg shop
+    honeyMin := rem30sec // 60
+    honeySec := Mod(rem30sec, 60)
+    honeyText := (honeySec < 10) ? honeyMin . ":0" . honeySec : honeyMin . ":" . honeySec
 
     tooltipText := ""
     if (selectedSeedItems.Length()) {
@@ -1603,6 +1745,9 @@ SetToolTip:
     }
     if (BuyAllCosmetics) {
         tooltipText .= "Cosmetic Shop: " . cosText . "`n"
+    }
+    if (selectedHoneyItems.Length()) {
+        tooltipText .= "Honey Shop: " . honeyText . "`n"
     }
 
     if (tooltipText != "") {
@@ -1644,6 +1789,12 @@ SetTimers:
     }
     cosmeticAutoActive := 1
     SetTimer, AutoBuyCosmeticShop, 1000 ; checks every second if it should queue
+
+    if (selectedHoneyItems.Length()) {
+        actionQueue.Push("BuyHoneyShop")
+    }
+    honeyAutoActive := 1
+    SetTimer, AutoBuyHoneyShop, 1000 ; checks every second if it should queue
 
 Return
 
@@ -1958,6 +2109,65 @@ GearShopPath:
 
 Return
 
+
+HoneyShopPath:
+    honeyCompleted = 0
+
+    ; Teleport to garden (assume F1 is teleport, adjust as needed)
+    Send, {F1}
+    Sleep, 2000
+    ; Walk forward (W) for 1500ms, then right (D) for 6500ms, then forward a bit more (W) for 500ms
+    Send, {w down}
+    Sleep, 1500
+    Send, {w up}
+    Sleep, 100
+    SendInput, {d down}
+    Sleep, 6500
+    Send, {d up}
+    Sleep, 100
+    Send, {w down}
+    Sleep, 500
+    Send, {w up}
+    Sleep, 200
+    ; Initiate dialogue with NPC
+    Send, {e}
+    sleepAmount(1500, 5000)
+    dialogueClick("honey")
+    sleepAmount(2500, 5000)
+    SendDiscordMessage(webhookURL, "**[Honey Shop Cycle]**")
+    ; checks for the shop opening up to 5 times to ensure it doesn't fail
+    Loop, 5 {
+        if (simpleDetect(0x01CFB2, 10, 0.54, 0.20, 0.65, 0.325)) { ; Example color/area, tweak as needed
+            ToolTip, Honey Shop Opened
+            SetTimer, HideTooltip, -1500
+            SendDiscordMessage(webhookURL, "Honey Shop Opened.")
+            Sleep, 200
+            uiUniversal("3331114433331114405550555", 0)
+            Sleep, 100
+            buyUniversal("honey")
+            SendDiscordMessage(webhookURL, "Honey Shop Closed.")
+            honeyCompleted = 1
+        }
+        if (honeyCompleted) {
+            break
+        }
+        Sleep, 2000
+    }
+
+    ; closeShop("honey", honeyCompleted)  ; Removed - honey shop handles its own closing
+    
+    Sleep, 1000
+    
+    sendKeybind(SavedKeybind)
+    uiUniversal("11110")  ; Teleport back to garden
+    
+    Sleep, 1000
+    
+    Gosub, zoomAlignment
+    
+    SendDiscordMessage(webhookURL, "**[Honey Shop Completed]**")
+Return
+
 CosmeticShopPath:
 
     ; if you are reading this please forgive this absolute garbage label
@@ -1979,7 +2189,7 @@ CosmeticShopPath:
     SendDiscordMessage(webhookURL, "**[Cosmetic Cycle]**")
     ; checks for the shop opening up to 5 times to ensure it doesn't fail
     Loop, 5 {
-        if (simpleDetect(0x00CCFF, 10, 0.61, 0.182, 0.764, 0.259)) {
+        if (simpleDetect(0x00CCFF, 10, 0.54, 0.20, 0.65, 0.325)) {
             ToolTip, Cosmetic Shop Opened
             SetTimer, HideTooltip, -1500
             SendDiscordMessage(webhookURL, "Cosmetic Shop Opened.")
@@ -2131,6 +2341,8 @@ SaveSettings:
     IniWrite, %UINavigationFix%, %settingsFile%, Main, UINavigationFix
     IniWrite, %BuyAllCosmetics%, %settingsFile%, Cosmetic, BuyAllCosmetics
     IniWrite, %SelectAllEggs%, %settingsFile%, Egg, SelectAllEggs
+    Loop, % honeyItems.Length()
+        IniWrite, % (HoneyItem%A_Index% ? 1 : 0), %settingsFile%, Honey, Item%A_Index%
 
 Return
 
