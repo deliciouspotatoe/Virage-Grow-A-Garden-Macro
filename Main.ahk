@@ -886,8 +886,8 @@ quickDetectEgg(buyColor, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2Rati
     isSelected := 0
 
     ; Define egg types and their colors
-    eggTypes := ["Common Egg", "Uncommon Egg", "Rare Egg", "Legendary Egg", "Mythical Egg", "Bug Egg", "Paradise Egg", "Summer Common Egg"]
-    eggColors := ["0xFFFFFF", "0x81A7D3", "0xBB5421", "0x2D78A3", "0x00CCFF", "0x86FFD5", "0x1baadb", "0x00d1d1"]
+    eggTypes := ["Common Egg", "Uncommon Egg", "Rare Egg", "Legendary Egg", "Mythical Egg", "Bug Egg", "Paradise Egg", "Summer Common Egg", "Rare Summer Egg"]
+    eggColors := ["0xFFFFFF", "0x81A7D3", "0xBB5421", "0x2D78A3", "0x00CCFF", "0x86FFD5", "0x1baadb", "0x00d1d1", "0xfdfda7"]
 
     Loop, 5 {
         Loop, % eggTypes.Length() {
@@ -1072,7 +1072,7 @@ gearItems := ["Watering Can", "Trowel", "Recall Wrench", "Basic Sprinkler", "Adv
              , "Favorite Tool", "Harvest Tool", "Friendship pot"]
 
 eggItems := ["Common Egg", "Uncommon Egg", "Rare Egg", "Legendary Egg", "Mythical Egg"
-             , "Bug Egg", "Paradise Egg", "Summer Common Egg"]
+             , "Bug Egg", "Paradise Egg", "Summer Common Egg", "Rare Summer Egg"]
 
 cosmeticItems := ["Cosmetic 1", "Cosmetic 2", "Cosmetic 3", "Cosmetic 4", "Cosmetic 5"
              , "Cosmetic 6",  "Cosmetic 7", "Cosmetic 8", "Cosmetic 9"]
