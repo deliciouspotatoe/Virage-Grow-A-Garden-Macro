@@ -732,6 +732,7 @@ quickDetectEgg(buyColor, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2Rati
     eggColorMap["Legendary Egg"] := "0x2D78A3"
     eggColorMap["Mythical Egg"]  := "0x00CCFF"
     eggColorMap["Bug Egg"]       := "0x86FFD5"
+    eggColorMap["Paradise Egg"]  := "0x1baadb"
 
     Loop, 5 {
         for rarity, color in eggColorMap {
@@ -823,7 +824,7 @@ quickDetect(color1, color2, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2R
     ; change to whatever you want to be pinged for
     pingItems := ["Bamboo Seed", "Coconut Seed", "Cactus Seed", "Dragon Fruit Seed", "Mango Seed", "Grape Seed", "Mushroom Seed", "Pepper Seed"
                 , "Cacao Seed", "Beanstalk Seed"
-                , "Basic Sprinkler", "Advanced Sprinkler", "Godly Sprinkler", "Lightning Rod", "Master Sprinkler"
+                , "Basic Sprinkler", "Advanced Sprinkler", "Godly Sprinkler", "Master Sprinkler"
                 , "Rare Egg", "Legendary Egg", "Mythical Egg", "Bug Egg"]
 
 	ping := false
@@ -900,17 +901,17 @@ quickDetect(color1, color2, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2R
 
 ; item arrays
 
-seedItems := ["Carrot Seed", "Strawberry Seed", "Blueberry Seed", "Orange Tulip"
-             , "Tomato Seed", "Corn Seed", "Daffodil Seed", "Watermelon Seed"
-             , "Pumpkin Seed", "Apple Seed", "Bamboo Seed", "Coconut Seed"
-             , "Cactus Seed", "Dragon Fruit Seed", "Mango Seed", "Grape Seed"
-             , "Mushroom Seed", "Pepper Seed", "Cacao Seed", "Beanstalk Seed", "Ember Lily Seed", "Sugar Apple"] ;
+seedItems := ["Carrot Seed", "Strawberry Seed", "Blueberry Seed", "Tomato Seed", "Cauliflower Seed"
+             , "Watermelon Seed", "Green Apple Seed", "Avocado Seed"
+             , "Banana Seed", "Pineapple Seed", "Kiwi Seed", "Bell Pepper Seed"
+             , "Prickly Pear Seed", "Loquat Seed", "Feijoa Seed", "Sugar Apple"] ;
 
 gearItems := ["Watering Can", "Trowel", "Recall Wrench", "Basic Sprinkler", "Advanced Sprinkler"
-             , "Godly Sprinkler", "Lightning Rod", "Master Sprinkler", "Cleaning Spray", "Favorite Tool", "Harvest Tool", "Friendship pot"]
+             , "Godly Sprinkler", "Tanning Mirror", "Master Sprinkler", "Cleaning Spray"
+             , "Favorite Tool", "Harvest Tool", "Friendship pot"]
 
 eggItems := ["Common Egg", "Uncommon Egg", "Rare Egg", "Legendary Egg", "Mythical Egg"
-             , "Bug Egg"]
+             , "Bug Egg", "Paradise Egg"]
 
 cosmeticItems := ["Cosmetic 1", "Cosmetic 2", "Cosmetic 3", "Cosmetic 4", "Cosmetic 5"
              , "Cosmetic 6",  "Cosmetic 7", "Cosmetic 8", "Cosmetic 9"]
@@ -1006,22 +1007,9 @@ ShowGui:
     Gui, Tab, 4
     Gui, Font, s9 ce8ac07 Bold, Segoe UI
     Gui, Add, GroupBox, x23 y50 w475 h340 ce8ac07, Honey Shop Items
-    IniRead, SelectAllHoney, %settingsFile%, Honey, SelectAllHoney, 0
-    Gui, Add, Checkbox, % "x50 y90 vSelectAllHoney gHandleSelectAll ce8ac07 " . (SelectAllHoney ? "Checked" : ""), Select All Honey Items
-    Loop, % honeyItems.Length() {
-        IniRead, hVal, %settingsFile%, Honey, Item%A_Index%, 0
-        if (A_Index > 7) {
-            col := 250
-            idx := A_Index - 8
-            yBase := 125
-        } else {
-            col := 50
-            idx := A_Index
-            yBase := 100
-        }
-        y := yBase + (idx * 25)
-        Gui, Add, Checkbox, % "x" col " y" y " vHoneyItem" A_Index " gHandleSelectAll cD3D3D3 " . (hVal ? "Checked" : ""), % honeyItems[A_Index]
-    }
+    IniRead, EnableHoneyShop, %settingsFile%, Honey, EnableHoneyShop, 0
+    Gui, Add, Checkbox, % "x50 y90 vEnableHoneyShop ce8ac07 " . (EnableHoneyShop ? "Checked" : ""), Enable Honey Shop
+    ; Removed per-item honey checkboxes and related loop
 
     Gui, Tab, 5
     Gui, Font, s9 cD41551 Bold, Segoe UI
@@ -1387,6 +1375,9 @@ UpdateSelectedItems:
     }
 
     selectedHoneyItems := []
+    if (EnableHoneyShop) {
+        selectedHoneyItems.Push("Honey Shop Enabled")
+    }
     Loop, % honeyItems.Length() {
         if (HoneyItem%A_Index%)
             selectedHoneyItems.Push(honeyItems[A_Index])
@@ -1972,7 +1963,7 @@ EggShopPath:
 
     ; egg 1 sequence
     Send, {w Down}
-    Sleep, 1500 ; reduced by 300
+    Sleep, 500 ; Updated for new setup
     Send {w Up}
     sleepAmount(500, 1000)
     Send {e}
@@ -2324,8 +2315,10 @@ SaveSettings:
     IniWrite, %UINavigationFix%, %settingsFile%, Main, UINavigationFix
     IniWrite, %BuyAllCosmetics%, %settingsFile%, Cosmetic, BuyAllCosmetics
     IniWrite, %SelectAllEggs%, %settingsFile%, Egg, SelectAllEggs
-    Loop, % honeyItems.Length()
-        IniWrite, % (HoneyItem%A_Index% ? 1 : 0), %settingsFile%, Honey, Item%A_Index%
+    if (EnableHoneyShop) {
+        result .= "Honey Shop: Enabled`n"
+    }
+    IniWrite, %EnableHoneyShop%, %settingsFile%, Honey, EnableHoneyShop
 
 Return
 
