@@ -733,6 +733,7 @@ quickDetectEgg(buyColor, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2Rati
     eggColorMap["Mythical Egg"]  := "0x00CCFF"
     eggColorMap["Bug Egg"]       := "0x86FFD5"
     eggColorMap["Paradise Egg"]  := "0x1baadb"
+    eggColorMap["Summer Common Egg"] := "0x00d1d1"
 
     Loop, 5 {
         for rarity, color in eggColorMap {
@@ -911,7 +912,7 @@ gearItems := ["Watering Can", "Trowel", "Recall Wrench", "Basic Sprinkler", "Adv
              , "Favorite Tool", "Harvest Tool", "Friendship pot"]
 
 eggItems := ["Common Egg", "Uncommon Egg", "Rare Egg", "Legendary Egg", "Mythical Egg"
-             , "Bug Egg", "Paradise Egg"]
+             , "Bug Egg", "Paradise Egg", "Summer Common Egg"]
 
 cosmeticItems := ["Cosmetic 1", "Cosmetic 2", "Cosmetic 3", "Cosmetic 4", "Cosmetic 5"
              , "Cosmetic 6",  "Cosmetic 7", "Cosmetic 8", "Cosmetic 9"]
