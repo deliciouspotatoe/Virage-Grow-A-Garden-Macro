@@ -17,6 +17,11 @@ global discordUserID
 global PingSelected
 global reconnectingProcess
 
+; Telegram bot variables
+global telegramBotToken
+global telegramChatID
+global TelegramEnabled
+
 global windowIDS := []
 global currentWindow := ""
 global firstWindow := ""
@@ -96,6 +101,91 @@ SendDiscordMessage(webhookURL, message) {
 
 }
 
+SendTelegramMessage(botToken, chatID, message) {
+
+    if (botToken = "" || chatID = "" || !TelegramEnabled) {
+        return
+    }
+
+    FormatTime, messageTime, , hh:mm:ss tt
+    fullMessage := "[" . messageTime . "] " . message
+
+    ; Simple URL encoding for Telegram API
+    encodedMessage := ""
+    Loop, Parse, fullMessage
+    {
+        char := A_LoopField
+        if (char = " ") {
+            encodedMessage .= "%20"
+        }
+        else if (char = "&") {
+            encodedMessage .= "%26"
+        }
+        else if (char = "=") {
+            encodedMessage .= "%3D"
+        }
+        else if (char = "?") {
+            encodedMessage .= "%3F"
+        }
+        else if (char = "#") {
+            encodedMessage .= "%23"
+        }
+        else if (char = "+") {
+            encodedMessage .= "%2B"
+        }
+        else if (char = "%") {
+            encodedMessage .= "%25"
+        }
+        else if (char = "[") {
+            encodedMessage .= "%5B"
+        }
+        else if (char = "]") {
+            encodedMessage .= "%5D"
+        }
+        else if (char = "*") {
+            encodedMessage .= "%2A"
+        }
+        else if (char = ".") {
+            encodedMessage .= "%2E"
+        }
+        else {
+            encodedMessage .= char
+        }
+    }
+    
+    ; Construct Telegram API URL
+    apiURL := "https://api.telegram.org/bot" . botToken . "/sendMessage?chat_id=" . chatID . "&text=" . encodedMessage
+    
+    whr := ComObjCreate("WinHttp.WinHttpRequest.5.1")
+
+    try {
+        whr.Open("GET", apiURL, false)
+        whr.Send()
+        whr.WaitForResponse()
+        status := whr.Status
+
+        if (status != 200) {
+            return
+        }
+    } catch {
+        return
+    }
+
+}
+
+; URL encoding function for Telegram API
+UriEncode(Uri, Enc = "UTF-8") {
+    VarSetCapacity(Var, StrPut(Uri, Enc))
+    StrPut(Uri, &Var, Enc)
+    f := A_FormatInteger
+    SetFormat, IntegerFast, H
+    Loop, % StrPut(Uri, Enc) - 1
+        Code := NumGet(Var, A_Index - 1, "UChar")
+        Res .= (Code >= 0x30 && Code <= 0x39) || (Code >= 0x41 && Code <= 0x5A) || (Code >= 0x61 && Code <= 0x7A) ? Chr(Code) : "%" . SubStr(Code + 0x10000, -1)
+    SetFormat, IntegerFast, %f%
+    Return, Res
+}
+
 checkValidity(url, msg := 0, mode := "nil") {
 
     global webhookURL
@@ -168,6 +258,75 @@ checkValidity(url, msg := 0, mode := "nil") {
 
 }
 
+checkTelegramValidity(botToken, chatID, msg := 0) {
+
+    global telegramBotToken
+    global telegramChatID
+    global settingsFile
+
+    isValid := 0
+
+    ; Validate bot token format (should be numbers:letters)
+    if (botToken = "" || !RegExMatch(botToken, "^\d+:[A-Za-z0-9_-]+$")) {
+        isValid := 0
+        if (msg) {
+            MsgBox, 0, Message, Invalid Telegram Bot Token Format`n`nExpected format: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz`n`nGet your bot token from @BotFather on Telegram
+            IniRead, savedBotToken, %settingsFile%, Main, TelegramBotToken,
+            IniRead, savedChatID, %settingsFile%, Main, TelegramChatID,
+            GuiControl,, telegramBotToken, %savedBotToken%
+            GuiControl,, telegramChatID, %savedChatID%
+        }
+        return false
+    }
+
+    ; Validate chat ID format (should be numbers, can be negative for groups)
+    if (chatID = "" || !RegExMatch(chatID, "^-?\d+$")) {
+        isValid := 0
+        if (msg) {
+            MsgBox, 0, Message, Invalid Telegram Chat ID Format`n`nExpected format: 123456789 (for personal chat)`nOr: -123456789 (for group chat)`n`nTo get your chat ID:`n1. Message your bot`n2. Visit: https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`n3. Find "chat":{"id":123456789} in the response
+            IniRead, savedBotToken, %settingsFile%, Main, TelegramBotToken,
+            IniRead, savedChatID, %settingsFile%, Main, TelegramChatID,
+            GuiControl,, telegramBotToken, %savedBotToken%
+            GuiControl,, telegramChatID, %savedChatID%
+        }
+        return false
+    }
+
+    ; Test the bot token and chat ID by sending a test message
+    testURL := "https://api.telegram.org/bot" . botToken . "/sendMessage?chat_id=" . chatID . "&text=Test message from GAG Macro - Bot is working!"
+    
+    try {
+        whr := ComObjCreate("WinHttp.WinHttpRequest.5.1")
+        whr.Open("GET", testURL, false)
+        whr.Send()
+        whr.WaitForResponse()
+        status := whr.Status
+
+        if (status = 200) {
+            isValid := 1
+        }
+    } catch {
+        isValid := 0
+    }
+
+    if (msg) {
+        if (isValid && botToken != "" && chatID != "") {
+            IniWrite, %botToken%, %settingsFile%, Main, TelegramBotToken
+            IniWrite, %chatID%, %settingsFile%, Main, TelegramChatID
+            MsgBox, 0, Message, Telegram Bot Settings Saved Successfully!`n`nYou should receive a test message in Telegram.
+        }
+        else if (!isValid && botToken != "" && chatID != "") {
+            MsgBox, 0, Message, Invalid Telegram Bot Token or Chat ID
+            IniRead, savedBotToken, %settingsFile%, Main, TelegramBotToken,
+            IniRead, savedChatID, %settingsFile%, Main, TelegramChatID,
+            GuiControl,, telegramBotToken, %savedBotToken%
+            GuiControl,, telegramChatID, %savedChatID%
+        }
+    }
+
+    return isValid
+
+}
 
 showPopupMessage(msgText := "nil", duration := 2000) {
 
@@ -695,6 +854,7 @@ closeShop(shop, success) {
         ToolTip, % "Error In Detecting " . shop
         SetTimer, HideTooltip, -1500
         SendDiscordMessage(webhookURL, "Failed To Detect " . shop . " Shop Opening [Error]" . (PingSelected ? " <@" . discordUserID . ">" : ""))
+        SendTelegramMessage(telegramBotToken, telegramChatID, "Failed To Detect " . shop . " Shop Opening [Error]")
         ; failsafe
         uiUniversal("3332223111133322231111054105")
 
@@ -725,30 +885,25 @@ quickDetectEgg(buyColor, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2Rati
     eggsCompleted := 0
     isSelected := 0
 
-    eggColorMap := Object()
-    eggColorMap["Common Egg"]    := "0xFFFFFF"
-    eggColorMap["Uncommon Egg"]  := "0x81A7D3"
-    eggColorMap["Rare Egg"]      := "0xBB5421"
-    eggColorMap["Legendary Egg"] := "0x2D78A3"
-    eggColorMap["Mythical Egg"]  := "0x00CCFF"
-    eggColorMap["Bug Egg"]       := "0x86FFD5"
-    eggColorMap["Paradise Egg"]  := "0x1baadb"
-    eggColorMap["Summer Common Egg"] := "0x00d1d1"
+    ; Define egg types and their colors
+    eggTypes := ["Common Egg", "Uncommon Egg", "Rare Egg", "Legendary Egg", "Mythical Egg", "Bug Egg", "Paradise Egg", "Summer Common Egg"]
+    eggColors := ["0xFFFFFF", "0x81A7D3", "0xBB5421", "0x2D78A3", "0x00CCFF", "0x86FFD5", "0x1baadb", "0x00d1d1"]
 
     Loop, 5 {
-        for rarity, color in eggColorMap {
-            currentItem := rarity
+        Loop, % eggTypes.Length() {
+            currentItem := eggTypes[A_Index]
+            eggColor := eggColors[A_Index]
             isSelected := 0
 
             for i, selected in selectedEggItems {
-                if (selected = rarity) {
+                if (selected = currentItem) {
                     isSelected := 1
                     break
                 }
             }
 
             ; check for the egg on screen, if its selected it gets bought
-            if (simpleDetect(color, variation, 0.41, 0.32, 0.54, 0.38)) {
+            if (simpleDetect(eggColor, variation, 0.41, 0.32, 0.54, 0.38)) {
                 if (isSelected) {
                     quickDetect(buyColor, 0, 5, 0.4, 0.60, 0.65, 0.70, 0, 1)
                     eggsCompleted = 1
@@ -758,11 +913,13 @@ quickDetectEgg(buyColor, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2Rati
                         ToolTip, % currentItem . "`nIn Stock, Not Selected"
                         SetTimer, HideTooltip, -1500
                         SendDiscordMessage(webhookURL, currentItem . " In Stock, Not Selected")
+                        SendTelegramMessage(telegramBotToken, telegramChatID, currentItem . " In Stock, Not Selected")
                     }
                     else {
                         ToolTip, % currentItem . "`nNot In Stock, Not Selected"
                         SetTimer, HideTooltip, -1500
                         SendDiscordMessage(webhookURL, currentItem . " Not In Stock, Not Selected")
+                        SendTelegramMessage(telegramBotToken, telegramChatID, currentItem . " Not In Stock, Not Selected")
                     }
                     if (UINavigationFix) {
                         uiUniversal(3140, 1, 1)
@@ -787,6 +944,7 @@ quickDetectEgg(buyColor, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2Rati
         ToolTip, Error In Detection
         SetTimer, HideTooltip, -1500
         SendDiscordMessage(webhookURL, "Failed To Detect Any Egg [Error]" . (PingSelected ? " <@" . discordUserID . ">" : ""))
+        SendTelegramMessage(telegramBotToken, telegramChatID, "Failed To Detect Any Egg [Error]")
     }
 
 }
@@ -823,10 +981,9 @@ quickDetect(color1, color2, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2R
     global UINavigationFix
     
     ; change to whatever you want to be pinged for
-    pingItems := ["Bamboo Seed", "Coconut Seed", "Cactus Seed", "Dragon Fruit Seed", "Mango Seed", "Grape Seed", "Mushroom Seed", "Pepper Seed"
-                , "Cacao Seed", "Beanstalk Seed"
-                , "Basic Sprinkler", "Advanced Sprinkler", "Godly Sprinkler", "Master Sprinkler"
-                , "Rare Egg", "Legendary Egg", "Mythical Egg", "Bug Egg"]
+    pingItems := ["Prickly Pear Seed", "Loquat Seed", "Feijoa Seed", "Sugar Apple"
+                    , "Tanning Mirror", "Master Sprinkler"
+                    , "Legendary Egg", "Mythical Egg", "Bug Egg"]
 
 	ping := false
 
@@ -861,6 +1018,7 @@ quickDetect(color1, color2, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2R
                     SendDiscordMessage(webhookURL, "Bought " . currentItem . ". <@" . discordUserID . ">")
                 else
                     SendDiscordMessage(webhookURL, "Bought " . currentItem . ".")
+                SendTelegramMessage(telegramBotToken, telegramChatID, "Bought " . currentItem . ".")
             }
         }
     }
@@ -878,6 +1036,7 @@ quickDetect(color1, color2, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2R
                 SendDiscordMessage(webhookURL, "Bought " . currentItem . ". <@" . discordUserID . ">")
             else
                 SendDiscordMessage(webhookURL, "Bought " . currentItem . ".")
+            SendTelegramMessage(telegramBotToken, telegramChatID, "Bought " . currentItem . ".")
         }
         if (!stock) {
             if (UINavigationFix) {
@@ -887,6 +1046,7 @@ quickDetect(color1, color2, variation := 10, x1Ratio := 0.0, y1Ratio := 0.0, x2R
                 uiUniversal(1105, 1, 1)
             }
             SendDiscordMessage(webhookURL, currentItem . " Not In Stock.")  
+            SendTelegramMessage(telegramBotToken, telegramChatID, currentItem . " Not In Stock.")
         }
     }
 
@@ -945,7 +1105,7 @@ ShowGui:
     Gui, Margin, 10, 10
     Gui, Color, 0x202020
     Gui, Font, s9 cWhite, Segoe UI
-    Gui, Add, Tab, x10 y10 w500 h400 vMyTab, Seeds|Gears|Eggs|Honey|Cosmetics|Settings|Credits
+    Gui, Add, Tab, x10 y10 w500 h450 vMyTab, Seeds|Gears|Eggs|Honey|Cosmetics|Settings|Credits
 
     Gui, Tab, 1
     Gui, Font, s9 c90EE90 Bold, Segoe UI
@@ -1035,79 +1195,117 @@ ShowGui:
     ; Gui, Add, Radio, x50 y300 gUpdateResolution c708090 %opt4%, 1280x720 100`%
 
     Gui, Font, s9, cWhite Bold, Segoe UI
-    Gui, Add, GroupBox, x23 y50 w475 h340 cD3D3D3, Settings
+    Gui, Add, GroupBox, x23 y50 w475 h420 cD3D3D3, Settings
 
-    IniRead, PingSelected, %settingsFile%, Main, PingSelected, 0
-    pingColor := PingSelected ? "c90EE90" : "cD3D3D3"
-    Gui, Add, Checkbox, % "x50 y225 vPingSelected gUpdateSettingColor " . pingColor . (PingSelected ? " Checked" : ""), Discord Item Pings
-    
-    IniRead, AutoAlign, %settingsFile%, Main, AutoAlign, 0
-    autoColor := AutoAlign ? "c90EE90" : "cD3D3D3"
-    Gui, Add, Checkbox, % "x50 y250 vAutoAlign gUpdateSettingColor " . autoColor . (AutoAlign ? " Checked" : ""), Auto-Align
-
-    IniRead, MultiInstanceMode, %settingsFile%, Main, MultiInstanceMode, 0
-    multiInstanceColor := MultiInstanceMode ? "c90EE90" : "cD3D3D3"
-    Gui, Add, Checkbox, % "x50 y275 vMultiInstanceMode gUpdateSettingColor " . multiInstanceColor . (MultiInstanceMode ? " Checked" : ""), Multi-Instance Mode
-
-    IniRead, UINavigationFix, %settingsFile%, Main, UINavigationFix, 0
-    uiNavigationFixColor := UINavigationFix ? "c90EE90" : "cD3D3D3"
-    Gui, Add, Checkbox, % "x50 y300 vUINavigationFix gUpdateSettingColor " . uiNavigationFixColor . (UINavigationFix ? " Checked" : ""), UI Navigation Fix
-
+    ; Discord Settings Section
+    Gui, Font, s9 c87CEEB Bold, Segoe UI
+    Gui, Add, Text, x50 y80, Discord Settings:
     Gui, Font, s8 cD3D3D3 Bold, Segoe UI
-    Gui, Add, Text, x50 y90, Webhook URL:
+    Gui, Add, Text, x50 y105, Webhook URL:
     Gui, Font, s8 cBlack norm, Segoe UI
     IniRead, savedWebhook, %settingsFile%, Main, UserWebhook
     if (savedWebhook = "ERROR") {
         savedWebhook := ""
     }
-    Gui, Add, Edit, x140 y90 w250 h18 vwebhookURL +BackgroundFFFFFF, %savedWebhook%
+    Gui, Add, Edit, x140 y105 w250 h18 vwebhookURL +BackgroundFFFFFF, %savedWebhook%
     Gui, Font, s8 cWhite Bold, Segoe UI
-    Gui, Add, Button, x400 y90 w85 h18 gDisplayWebhookValidity Background202020, Save Webhook
+    Gui, Add, Button, x400 y105 w85 h18 gDisplayWebhookValidity Background202020, Save Webhook
 
     Gui, Font, s8 cD3D3D3 Bold, Segoe UI
-    Gui, Add, Text, x50 y115, Discord User ID:
+    Gui, Add, Text, x50 y130, Discord User ID:
     Gui, Font, s8 cBlack norm, Segoe UI
     IniRead, savedUserID, %settingsFile%, Main, DiscordUserID
     if (savedUserID = "ERROR") {
         savedUserID := ""
     }
-    Gui, Add, Edit, x140 y115 w250 h18 vdiscordUserID +BackgroundFFFFFF, %savedUserID%
+    Gui, Add, Edit, x140 y130 w250 h18 vdiscordUserID +BackgroundFFFFFF, %savedUserID%
     Gui, Font, s8 cD3D3D3 Bold, Segoe UI
-    Gui, Add, Button, x400 y115 w85 h18 gUpdateUserID Background202020, Save UserID
-    IniRead, savedUserID, %settingsFile%, Main, DiscordUserID
+    Gui, Add, Button, x400 y130 w85 h18 gUpdateUserID Background202020, Save UserID
 
+    ; Telegram Settings Section
+    Gui, Font, s9 c00CCFF Bold, Segoe UI
+    Gui, Add, Text, x50 y165, Telegram Settings:
+    Gui, Font, s8 cD3D3D3 Bold, Segoe UI
+    Gui, Add, Text, x50 y190, Bot Token:
+    Gui, Font, s8 cBlack norm, Segoe UI
+    IniRead, savedBotToken, %settingsFile%, Main, TelegramBotToken
+    if (savedBotToken = "ERROR") {
+        savedBotToken := ""
+    }
+    Gui, Add, Edit, x140 y190 w250 h18 vtelegramBotToken +BackgroundFFFFFF, %savedBotToken%
+    Gui, Font, s8 cWhite Bold, Segoe UI
+    Gui, Add, Button, x400 y190 w85 h18 gDisplayTelegramValidity Background202020, Save Token
+    Gui, Add, Button, x400 y165 w85 h18 gShowTelegramHelp Background202020, Help
 
-    Gui, Add, Text, x50 y140, Private Server:
+    Gui, Font, s8 cD3D3D3 Bold, Segoe UI
+    Gui, Add, Text, x50 y215, Chat ID:
+    Gui, Font, s8 cBlack norm, Segoe UI
+    IniRead, savedChatID, %settingsFile%, Main, TelegramChatID
+    if (savedChatID = "ERROR") {
+        savedChatID := ""
+    }
+    Gui, Add, Edit, x140 y215 w250 h18 vtelegramChatID +BackgroundFFFFFF, %savedChatID%
+    Gui, Font, s8 cWhite Bold, Segoe UI
+    Gui, Add, Button, x400 y215 w85 h18 gDisplayTelegramValidity Background202020, Save Chat ID
+
+    IniRead, TelegramEnabled, %settingsFile%, Main, TelegramEnabled, 0
+    telegramColor := TelegramEnabled ? "c90EE90" : "cD3D3D3"
+    Gui, Add, Checkbox, % "x50 y240 vTelegramEnabled gUpdateSettingColor " . telegramColor . (TelegramEnabled ? " Checked" : ""), Enable Telegram Notifications
+
+    ; Other Settings Section
+    Gui, Font, s9 cFFD700 Bold, Segoe UI
+    Gui, Add, Text, x200 y270, Other Settings:
+    Gui, Font, s8 cD3D3D3 Bold, Segoe UI
+    Gui, Add, Text, x200 y295, Private Server:
     Gui, Font, s8 cBlack norm, Segoe UI
     IniRead, savedServerLink, %settingsFile%, Main, PrivateServerLink
     if (savedServerLink = "ERROR") {
         savedServerLink := ""
     }
-    Gui, Add, Edit, x140 y140 w250 h18 vprivateServerLink +BackgroundFFFFFF, %savedServerLink%
+    Gui, Add, Edit, x290 y295 w200 h18 vprivateServerLink +BackgroundFFFFFF, %savedServerLink%
     Gui, Font, s8 cD3D3D3 Bold, Segoe UI
-    Gui, Add, Button, x400 y140 w85 h18 gDisplayServerValidity Background202020, Save Link
-
-    Gui, Add, Button, x400 y165 w85 h18 gClearSaves Background202020, Clear Saves
+    Gui, Add, Button, x390 y315 w85 h18 gDisplayServerValidity Background202020, Save Link
 
     Gui, Font, s8 cD3D3D3 Bold, Segoe UI
-    Gui, Add, Text, x50 y165, UI Navigation Keybind:
+    Gui, Add, Text, x200 y320, UI Navigation Keybind:
     Gui, Font, s8 cBlack norm, Segoe UI
     IniRead, SavedKeybind, %settingsFile%, Main, UINavigationKeybind, \
     if (SavedKeybind = "") {
         SavedKeybind := "\"
     }
-    Gui, Add, Edit, x180 y165 w50 h18 vSavedKeybind gUpdateKeybind +BackgroundFFFFFF, %savedKeybind%
+    Gui, Add, Edit, x330 y320 w50 h18 vSavedKeybind gUpdateKeybind +BackgroundFFFFFF, %SavedKeybind%
 
     Gui, Font, s8 cD3D3D3 Bold, Segoe UI
-    Gui, Add, Text, x50 y190, Macro Speed:
+    Gui, Add, Text, x200 y345, Macro Speed:
     Gui, Font, s8 cBlack norm, Segoe UI
     IniRead, SavedSpeed, %settingsFile%, Main, MacroSpeed, Stable
-    Gui, Add, DropDownList, vSavedSpeed gUpdateSpeed x130 y190 w50, Stable|Fast|Ultra|Max
+    Gui, Add, DropDownList, vSavedSpeed gUpdateSpeed x280 y345 w50, Stable|Fast|Ultra|Max
     GuiControl, ChooseString, SavedSpeed, %SavedSpeed%
 
+    ; Macro Options Section
+    Gui, Font, s9 c90EE90 Bold, Segoe UI
+    Gui, Add, Text, x50 y270, Macro Options:
+    IniRead, PingSelected, %settingsFile%, Main, PingSelected, 0
+    pingColor := PingSelected ? "c90EE90" : "cD3D3D3"
+    Gui, Add, Checkbox, % "x50 y295 vPingSelected gUpdateSettingColor " . pingColor . (PingSelected ? " Checked" : ""), Discord Item Pings
+    
+    IniRead, AutoAlign, %settingsFile%, Main, AutoAlign, 0
+    autoColor := AutoAlign ? "c90EE90" : "cD3D3D3"
+    Gui, Add, Checkbox, % "x50 y320 vAutoAlign gUpdateSettingColor " . autoColor . (AutoAlign ? " Checked" : ""), Auto-Align
+
+    IniRead, MultiInstanceMode, %settingsFile%, Main, MultiInstanceMode, 0
+    multiInstanceColor := MultiInstanceMode ? "c90EE90" : "cD3D3D3"
+    Gui, Add, Checkbox, % "x50 y345 vMultiInstanceMode gUpdateSettingColor " . multiInstanceColor . (MultiInstanceMode ? " Checked" : ""), Multi-Instance Mode
+
+    IniRead, UINavigationFix, %settingsFile%, Main, UINavigationFix, 0
+    uiNavigationFixColor := UINavigationFix ? "c90EE90" : "cD3D3D3"
+    Gui, Add, Checkbox, % "x50 y370 vUINavigationFix gUpdateSettingColor " . uiNavigationFixColor . (UINavigationFix ? " Checked" : ""), UI Navigation Fix
+
+    ; Control Buttons
     Gui, Font, s10 cWhite Bold, Segoe UI
-    Gui, Add, Button, x50 y335 w150 h40 gStartScanMultiInstance Background202020, Start Macro (F5)
-    Gui, Add, Button, x320 y335 w150 h40 gQuit Background202020, Stop Macro (F7)
+    Gui, Add, Button, x50 y400 w150 h40 gStartScanMultiInstance Background202020, Start Macro (F5)
+    Gui, Add, Button, x320 y400 w150 h40 gQuit Background202020, Stop Macro (F7)
+    Gui, Add, Button, x400 y370 w85 h18 gClearSaves Background202020, Clear All
 
     Gui, Tab, 7
     Gui, Font, s9 cWhite Bold, Segoe UI
@@ -1143,7 +1341,7 @@ ShowGui:
     ; Gui, Add, Button, x50 y270 w100 h25 gDonate vDonate2500 BackgroundF0F0F0, 2500 Robux
     ; Gui, Add, Button, x50 y330 w100 h25 gDonate vDonate10000 BackgroundF0F0F0, 10000 Robux
     
-    Gui, Show, w520 h425, Virage FREE GAG Macro [WORKING BEES/CRAFTER UPDATE]
+    Gui, Show, w520 h475, Virage FREE GAG Macro [WORKING BEES/CRAFTER UPDATE]
 
 Return
 
@@ -1176,21 +1374,35 @@ DisplayServerValidity:
 
 Return
 
+DisplayTelegramValidity:
+
+    Gui, Submit, NoHide
+
+    checkTelegramValidity(telegramBotToken, telegramChatID, 1)
+
+Return
+
 ClearSaves:
 
     IniWrite, %A_Space%, %settingsFile%, Main, UserWebhook
     IniWrite, %A_Space%, %settingsFile%, Main, DiscordUserID
     IniWrite, %A_Space%, %settingsFile%, Main, PrivateServerLink
+    IniWrite, %A_Space%, %settingsFile%, Main, TelegramBotToken
+    IniWrite, %A_Space%, %settingsFile%, Main, TelegramChatID
 
     IniRead, savedWebhook, %settingsFile%, Main, UserWebhook
     IniRead, savedUserID, %settingsFile%, Main, DiscordUserID
     IniRead, savedServerLink, %settingsFile%, Main, PrivateServerLink
+    IniRead, savedBotToken, %settingsFile%, Main, TelegramBotToken
+    IniRead, savedChatID, %settingsFile%, Main, TelegramChatID
 
     GuiControl,, webhookURL, %savedWebhook% 
     GuiControl,, discordUserID, %savedUserID% 
     GuiControl,, privateServerLink, %savedServerLink% 
+    GuiControl,, telegramBotToken, %savedBotToken% 
+    GuiControl,, telegramChatID, %savedChatID% 
 
-    MsgBox, 0, Message, Webhook, User Id, and Private Server Link Cleared
+    MsgBox, 0, Message, Webhook, User Id, Private Server Link, and Telegram Settings Cleared
 
 Return
 
@@ -1289,6 +1501,7 @@ UpdateSettingColor:
     pingColor := "+c" . (PingSelected ? "90EE90" : "D3D3D3")
     multiInstanceColor := "+c" . (MultiInstanceMode ? "90EE90" : "D3D3D3")
     uiNavigationFixColor := "+c" . (UINavigationFix ? "90EE90" : "D3D3D3")
+    telegramColor := "+c" . (TelegramEnabled ? "90EE90" : "D3D3D3")
 
     ; apply colors
     GuiControl, %autoColor%, AutoAlign
@@ -1302,6 +1515,8 @@ UpdateSettingColor:
 
     GuiControl, %uiNavigationFixColor%, UINavigationFix
     GuiControl, +Redraw, UINavigationFix
+    GuiControl, %telegramColor%, TelegramEnabled
+    GuiControl, +Redraw, TelegramEnabled
     
 return
 
@@ -1446,6 +1661,7 @@ StartScanMultiInstance:
     }
 
     SendDiscordMessage(webhookURL, "Macro started.")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "Macro started.")
 
     if (MultiInstanceMode) {
         MsgBox, 1, Multi-Instance Mode, % "You have " . windowIDS.MaxIndex() . " instances open. (Instance ID's: " . idDisplay . ")`nPress OK to start the macro."
@@ -1528,6 +1744,7 @@ StartScanMultiInstance:
                 WinActivate, % "ahk_id " . firstWindow
                 cycleCount++
                 SendDiscordMessage(webhookURL, "[**CYCLE " . cycleCount . " COMPLETED**]")
+                SendTelegramMessage(telegramBotToken, telegramChatID, "[**CYCLE " . cycleCount . " COMPLETED**]")
                 cycleFinished := 0
                 if (!MultiInstanceMode) {
                     SetTimer, AutoReconnect, 5000
@@ -1802,6 +2019,7 @@ AutoReconnect:
         ToolTip, Attempting To Reconnect
         SetTimer, HideTooltip, -5000
         SendDiscordMessage(webhookURL, "Lost connection or macro errored, attempting to reconnect..." . (PingSelected ? " <@" . discordUserID . ">" : ""))
+        SendTelegramMessage(telegramBotToken, telegramChatID, "Lost connection or macro errored, attempting to reconnect...")
         sleepAmount(15000, 30000)
         SetTimer, CheckLoadingScreen, 5000
     }
@@ -1823,6 +2041,7 @@ CheckLoadingScreen:
         ToolTip, Rejoined Successfully
         sleepAmount(5000, 10000)
         SendDiscordMessage(webhookURL, "Successfully reconnected to server." . (PingSelected ? " <@" . discordUserID . ">" : ""))
+        SendTelegramMessage(telegramBotToken, telegramChatID, "Successfully reconnected to server.")
         Sleep, 200
         Gosub, StartScanMultiInstance
     }
@@ -1960,6 +2179,7 @@ EggShopPath:
     sleepAmount(100, 1000)
     SafeClickRelative(midX, midY)
     SendDiscordMessage(webhookURL, "**[Egg Cycle]**")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "**[Egg Cycle]**")
     Sleep, 800
 
     ; egg 1 sequence
@@ -2001,6 +2221,7 @@ EggShopPath:
     uiUniversal("11110")
     Sleep, 100
     SendDiscordMessage(webhookURL, "**[Eggs Completed]**")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "**[Eggs Completed]**")
 
 Return
 
@@ -2012,6 +2233,7 @@ SeedShopPath:
     sleepAmount(100, 1000)
     Send, {e}
     SendDiscordMessage(webhookURL, "**[Seed Cycle]**")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "**[Seed Cycle]**")
     sleepAmount(2500, 5000)
     ; checks for the shop opening up to 5 times to ensure it doesn't fail
     Loop, 5 {
@@ -2019,11 +2241,13 @@ SeedShopPath:
             ToolTip, Seed Shop Opened
             SetTimer, HideTooltip, -1500
             SendDiscordMessage(webhookURL, "Seed Shop Opened.")
+            SendTelegramMessage(telegramBotToken, telegramChatID, "Seed Shop Opened.")
             Sleep, 200
             uiUniversal("3331114433331114405550555", 0)
             Sleep, 100
             buyUniversal("seed")
             SendDiscordMessage(webhookURL, "Seed Shop Closed.")
+            SendTelegramMessage(telegramBotToken, telegramChatID, "Seed Shop Closed.")
             seedsCompleted = 1
         }
         if (seedsCompleted) {
@@ -2035,6 +2259,7 @@ SeedShopPath:
     closeShop("seed", seedsCompleted)
 
     SendDiscordMessage(webhookURL, "**[Seeds Completed]**")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "**[Seeds Completed]**")
 
 Return
 
@@ -2053,6 +2278,7 @@ GearShopPath:
     sleepAmount(1500, 5000)
     dialogueClick("gear")
     SendDiscordMessage(webhookURL, "**[Gear Cycle]**")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "**[Gear Cycle]**")
     sleepAmount(2500, 5000)
     ; checks for the shop opening up to 5 times to ensure it doesn't fail
     Loop, 5 {
@@ -2060,11 +2286,13 @@ GearShopPath:
             ToolTip, Gear Shop Opened
             SetTimer, HideTooltip, -1500
             SendDiscordMessage(webhookURL, "Gear Shop Opened.")
+            SendTelegramMessage(telegramBotToken, telegramChatID, "Gear Shop Opened.")
             Sleep, 200
             uiUniversal("3331114433331114405550555", 0)
             Sleep, 100
             buyUniversal("gear")
             SendDiscordMessage(webhookURL, "Gear Shop Closed.")
+            SendTelegramMessage(telegramBotToken, telegramChatID, "Gear Shop Closed.")
             gearsCompleted = 1
         }
         if (gearsCompleted) {
@@ -2081,9 +2309,9 @@ GearShopPath:
 
     hotbarController(0, 1, "0")
     SendDiscordMessage(webhookURL, "**[Gears Completed]**")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "**[Gears Completed]**")
 
 Return
-
 
 HoneyShopPath:
     honeyCompleted = 0
@@ -2110,17 +2338,20 @@ HoneyShopPath:
     dialogueClick("honey")
     sleepAmount(2500, 5000)
     SendDiscordMessage(webhookURL, "**[Honey Shop Cycle]**")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "**[Honey Shop Cycle]**")
     ; checks for the shop opening up to 5 times to ensure it doesn't fail
     Loop, 5 {
         if (simpleDetect(0x01CFB2, 10, 0.54, 0.20, 0.65, 0.325)) { ; Example color/area, tweak as needed
             ToolTip, Honey Shop Opened
             SetTimer, HideTooltip, -1500
             SendDiscordMessage(webhookURL, "Honey Shop Opened.")
+            SendTelegramMessage(telegramBotToken, telegramChatID, "Honey Shop Opened.")
             Sleep, 200
             uiUniversal("3331114433331114405550555", 0)
             Sleep, 100
             buyUniversal("honey")
             SendDiscordMessage(webhookURL, "Honey Shop Closed.")
+            SendTelegramMessage(telegramBotToken, telegramChatID, "Honey Shop Closed.")
             honeyCompleted = 1
         }
         if (honeyCompleted) {
@@ -2141,6 +2372,7 @@ HoneyShopPath:
     Gosub, zoomAlignment
     
     SendDiscordMessage(webhookURL, "**[Honey Shop Completed]**")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "**[Honey Shop Completed]**")
 Return
 
 CosmeticShopPath:
@@ -2162,21 +2394,25 @@ CosmeticShopPath:
     Send, {e}
     sleepAmount(2500, 5000)
     SendDiscordMessage(webhookURL, "**[Cosmetic Cycle]**")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "**[Cosmetic Cycle]**")
     ; checks for the shop opening up to 5 times to ensure it doesn't fail
     Loop, 5 {
         if (simpleDetect(0x00CCFF, 10, 0.54, 0.20, 0.65, 0.325)) {
             ToolTip, Cosmetic Shop Opened
             SetTimer, HideTooltip, -1500
             SendDiscordMessage(webhookURL, "Cosmetic Shop Opened.")
+            SendTelegramMessage(telegramBotToken, telegramChatID, "Cosmetic Shop Opened.")
             Sleep, 200
             for index, item in cosmeticItems {
                 label := StrReplace(item, " ", "")
                 currentItem := cosmeticItems[A_Index]
                 Gosub, %label%
                 SendDiscordMessage(webhookURL, "Bought " . currentItem . (PingSelected ? " <@" . discordUserID . ">" : ""))
+                SendTelegramMessage(telegramBotToken, telegramChatID, "Bought " . currentItem . ".")
                 Sleep, 100
             }
             SendDiscordMessage(webhookURL, "Cosmetic Shop Closed.")
+            SendTelegramMessage(telegramBotToken, telegramChatID, "Cosmetic Shop Closed.")
             cosmeticsCompleted = 1
         }
         if (cosmeticsCompleted) {
@@ -2191,6 +2427,7 @@ CosmeticShopPath:
     }
     else {
         SendDiscordMessage(webhookURL, "Failed To Detect Cosmetic Shop Opening [Error]" . (PingSelected ? " <@" . discordUserID . ">" : ""))
+        SendTelegramMessage(telegramBotToken, telegramChatID, "Failed To Detect Cosmetic Shop Opening [Error]")
         ; failsafe
         uiUniversal("11114111350")
         Sleep, 50
@@ -2199,6 +2436,7 @@ CosmeticShopPath:
 
     hotbarController(0, 1, "0")
     SendDiscordMessage(webhookURL, "**[Cosmetics Completed]**")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "**[Cosmetics Completed]**")
 
 Return
 
@@ -2320,6 +2558,7 @@ SaveSettings:
         result .= "Honey Shop: Enabled`n"
     }
     IniWrite, %EnableHoneyShop%, %settingsFile%, Honey, EnableHoneyShop
+    IniWrite, %TelegramEnabled%, %settingsFile%, Main, TelegramEnabled
 
 Return
 
@@ -2356,6 +2595,7 @@ Quit:
 
     PauseMacro(1)
     SendDiscordMessage(webhookURL, "Macro reloaded.")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "Macro reloaded.")
     Reload ; ahk built in reload
 
 Return
@@ -2365,6 +2605,7 @@ F7::
 
     PauseMacro(1)
     SendDiscordMessage(webhookURL, "Macro reloaded.")
+    SendTelegramMessage(telegramBotToken, telegramChatID, "Macro reloaded.")
     Reload ; ahk built in reload
 
 Return
@@ -2377,3 +2618,38 @@ Gosub, StartScanMultiInstance
 Return
 
 #MaxThreadsPerHotkey, 2
+
+ShowTelegramHelp:
+
+    MsgBox, 0, Telegram Setup Instructions, 
+    (
+    TELEGRAM BOT SETUP INSTRUCTIONS:
+
+    1. CREATE A BOT:
+       • Open Telegram and search for @BotFather
+       • Send /newbot command
+       • Follow instructions to create your bot
+       • Save the bot token (format: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz)
+
+    2. GET YOUR CHAT ID:
+       • Start a conversation with your bot
+       • Send any message to your bot
+       • Visit this URL in your browser:
+         https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates
+       • Find "chat":{"id":123456789} in the response
+       • Copy the number (can be negative for groups)
+
+    3. CONFIGURE IN MACRO:
+       • Enter bot token and chat ID in settings
+       • Click "Save Token" and "Save Chat ID"
+       • Enable "Enable Telegram Notifications"
+       • You should receive a test message
+
+    TROUBLESHOOTING:
+    • Make sure you've started a conversation with your bot
+    • Verify bot token format: numbers:letters
+    • Verify chat ID is just numbers (can be negative)
+    • Check that bot has permission to send messages
+    )
+
+Return
