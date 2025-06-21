@@ -379,60 +379,60 @@ buyUniversal(itemType) {
 
     if (itemType = "honey") {
         ; Hardcoded sequence for honey shop - predefined items
-        repeatKey("Enter", 1)           ; Seed pack
-        Sleep, 100
-        repeatKey("Down", 2, 200)            ; 
-        Sleep, 100
-        repeatKey("Enter", 5)           ; Buy seed pack
-        Sleep, 100
-        repeatKey("Down", 3)            ; 
-        Sleep, 100
-        repeatKey("Enter", 1)           ; Nectarine
-        Sleep, 100
-        repeatKey("Down", 1)            ;
-        Sleep, 100
-        repeatKey("Enter", 5)           ; Buy Nectarine
-        Sleep, 100
-        repeatKey("Down", 1)            ;
-        Sleep, 100
-        repeatKey("Enter", 1)           ; Hive Fruit
-        Sleep, 100
-        repeatKey("Down", 1)            ; 
-        Sleep, 100
-        repeatKey("Enter", 5)           ; Buy Hive Fruit
-        Sleep, 100
-        repeatKey("Down", 3)            ; down arrow x3
-        Sleep, 100
-        repeatKey("Enter", 1)           ; enter
-        Sleep, 100
-        repeatKey("Down", 1)            ; down arrow
-        Sleep, 100
-        repeatKey("Enter", 5)           ; spam enter
-        Sleep, 100
-        repeatKey("Down", 1)            ; down arrow
-        Sleep, 100
-        repeatKey("Enter", 1)           ; enter
-        Sleep, 100
-        repeatKey("Down", 2, 200)            ; down arrow x2
-        Sleep, 100
-        repeatKey("Enter", 5)           ; spam enter
-        Sleep, 100
-        repeatKey("Down", 1)            ; down arrow
-        Sleep, 100
-        repeatKey("Enter", 1)           ; enter
-        Sleep, 100
-        repeatKey("Down", 2, 200)            ; down arrow x2
-        Sleep, 100
-        repeatKey("Enter", 5)           ; spam enter
-        Sleep, 100
-        repeatKey("Up", 14)             ; up arrow x14
-        Sleep, 100
-        repeatKey("Right", 2)           ; right arrow
-        Sleep, 100
-        repeatKey("Down", 1)            ; down arrow
-        Sleep, 100
-        repeatKey("Enter", 1)           ; enter
-        Sleep, 100
+        repeatKey("Enter", 1, 100)           ; Seed pack
+        Sleep, 200
+        repeatKey("Down", 2, 300)            ; 
+        Sleep, 200
+        repeatKey("Enter", 5, 100)           ; Buy seed pack
+        Sleep, 200
+        repeatKey("Down", 3, 100)            ; 
+        Sleep, 200
+        repeatKey("Enter", 1, 100)           ; Nectarine
+        Sleep, 200
+        repeatKey("Down", 1, 100)            ;
+        Sleep, 200
+        repeatKey("Enter", 5, 100)           ; Buy Nectarine
+        Sleep, 200
+        repeatKey("Down", 1, 100)            ;
+        Sleep, 200
+        repeatKey("Enter", 1, 100)           ; Hive Fruit
+        Sleep, 200
+        repeatKey("Down", 1, 100)            ; 
+        Sleep, 200
+        repeatKey("Enter", 5, 100)           ; Buy Hive Fruit
+        Sleep, 200
+        repeatKey("Down", 3, 100)            ; down arrow x3
+        Sleep, 200
+        repeatKey("Enter", 1, 100)           ; enter
+        Sleep, 200
+        repeatKey("Down", 1, 100)            ; down arrow
+        Sleep, 200
+        repeatKey("Enter", 5, 100)           ; spam enter
+        Sleep, 200
+        repeatKey("Down", 1, 100)            ; down arrow
+        Sleep, 200
+        repeatKey("Enter", 1, 100)           ; enter
+        Sleep, 200
+        repeatKey("Down", 2, 300)            ; down arrow x2
+        Sleep, 200
+        repeatKey("Enter", 5, 100)           ; spam enter
+        Sleep, 200
+        repeatKey("Down", 1, 100)            ; down arrow
+        Sleep, 200
+        repeatKey("Enter", 1, 100)           ; enter
+        Sleep, 200
+        repeatKey("Down", 2, 300)            ; down arrow x2
+        Sleep, 200
+        repeatKey("Enter", 5, 100)           ; spam enter
+        Sleep, 200
+        repeatKey("Up", 14, 100)             ; up arrow x14
+        Sleep, 200
+        repeatKey("Right", 2, 100)           ; right arrow
+        Sleep, 200
+        repeatKey("Down", 1, 100)            ; down arrow
+        Sleep, 200
+        repeatKey("Enter", 1, 100)           ; enter
+        Sleep, 200
         return                          ; return at the end of the if block
     }
 
@@ -918,23 +918,6 @@ cosmeticItems := ["Cosmetic 1", "Cosmetic 2", "Cosmetic 3", "Cosmetic 4", "Cosme
 honeyItems := ["Flower Seed Pack", "Lavender Seed", "Nectarshade Seed", "Nectarine Seed", "Hive Fruit Seed"
            , "Pollen Radar", "Nectar Staff", "Honey Sprinkle", "Bee Egg", "Bee Crate"
            , "Honey Comb", "Bee Chair", "Honey Torch", "Honey Walkway"]
-
-; mask arrays /!\ 1:1 False with every item array except honey /!\
-
-seedMask := []
-Loop, % seedItems.Length()
-    seedMask.Push(false)
-
-gearMask := []
-Loop, % gearItems.Length()
-    gearMask.Push(false)
-
-eggMask := []
-Loop, % eggItems.Length()
-    eggMask.Push(false)
-
-; On for: Flower Seed Pack, Bee Egg and Bee Crate
-honeyMask := [true, false, false, false, false, false, false, false, true, true, false, false, false, false]
 
 global selectedHoneyItems := []
 global honeyAutoActive := 0
